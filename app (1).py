@@ -34,7 +34,7 @@ if PROJECT_BASE:
 else:
     # Running on Streamlit Cloud — all files in same directory as app.py
     BASE       = os.path.dirname(os.path.abspath(__file__))
-    DATA_PATH  = os.path.join(BASE, "master_geo_slim.csv")
+    DATA_PATH  = os.path.join(BASE, "master_geo_slim.parquet")
     MODEL_PATH = os.path.join(BASE, "catboost_model_v2.pkl")
     FEAT_PATH  = os.path.join(BASE, "FEATURE_COLS.pkl")
     ARCH_PATH  = os.path.join(BASE, "flagged_segments_archetypes_v2.csv")
@@ -50,7 +50,7 @@ def load_data():
     if not os.path.exists(DATA_PATH):
         st.error(f"Data file not found: {DATA_PATH}")
         st.stop()
-    df = pd.read_csv(DATA_PATH, low_memory=True)
+    df = pd.read_parquet(DATA_PATH)
     df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
     df["lon"] = pd.to_numeric(df["lon"], errors="coerce")
     df = df.dropna(subset=["lat", "lon"])
