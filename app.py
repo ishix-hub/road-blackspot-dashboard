@@ -59,8 +59,8 @@ else:
 CITY_CENTERS = {"Delhi": [28.6139, 77.2090], "Pune": [18.5204, 73.8567]}
 
 # ── Economic constants (MoRTH official figures) ───────────────────────────
-COST_PER_ACCIDENT_INR  = 1_500_000   # ₹15 lakh per accident (MoRTH 2023)
-AVG_ACCIDENTS_PER_SPOT = 2           # average additional accidents/year per blind spot
+COST_PER_ACCIDENT_INR  = 1_571_000   # ₹15 lakh per accident (MoRTH 2023)
+AVG_ACCIDENTS_PER_SPOT = 1.67           # average additional accidents/year per blind spot
 TREATMENT_COST_INR     = 750_000     # ₹7.5 lakh per spot (signage + humps)
 
 # ── Load functions ────────────────────────────────────────────────────────
