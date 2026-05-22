@@ -405,47 +405,244 @@ elif panel == "🔍 SHAP Segment Detail":
             st.info("If matplotlib PdfPages is unavailable, install: pip install matplotlib")
 
 # ════════════════════════════════════════════════════════════════
-# PANEL 3 — BERTOPIC ARCHETYPES
+# PANEL 3 — ROAD TYPE RISK PROFILES (replaces BERTopic)
 # ════════════════════════════════════════════════════════════════
 elif panel == "🧩 Risk Archetypes":
     st.markdown(
-        "<div class='main-title'>🧩 BERTopic Risk Archetype Clusters</div>"
+        "<div class='main-title'>🧩 Road Type Risk Profiles</div>"
         "<div class='sub-title'>"
-        "Risk archetypes discovered by applying BERTopic to SHAP value patterns across "
-        "all flagged segments. First application of this method in road safety research worldwide."
+        "Feature profiles of black spot segments by road type. "
+        "Each road type has a distinct risk mechanism requiring "
+        "different infrastructure interventions."
         "</div>", unsafe_allow_html=True
     )
 
-    if arch_df.empty:
-        st.warning("Archetype file not found. Run Notebook 05 first.")
+    if "is_blackspot" not in df_v.columns or "highway_type" not in df_v.columns:
+        st.warning("Required columns not found in data.")
     else:
-        ac = arch_df["archetype_name"].value_counts().reset_index()
-        ac.columns = ["Archetype","Count"]
-        fig_bar = px.bar(ac, x="Count", y="Archetype", orientation="h",
-                         color="Archetype", title="Risk Archetypes — Black Spot Segments",
-                         color_discrete_sequence=px.colors.qualitative.Set2)
-        fig_bar.update_layout(showlegend=False, height=360)
-        st.plotly_chart(fig_bar, use_container_width=True)
+        bs_df = df_v[df_v["is_blackspot"] == 1].copy()
 
-        col_a, col_b = st.columns(2)
-        for city, col in zip(["Delhi","Pune"], [col_a, col_b]):
-            ca = arch_df[arch_df["city"]==city]["archetype_name"].value_counts()
-            with col:
-                st.subheader(city)
-                if len(ca) > 0:
-                    fig2 = px.pie(values=ca.values, names=ca.index,
-                                  color_discrete_sequence=px.colors.qualitative.Set2)
-                    fig2.update_layout(height=300)
-                    st.plotly_chart(fig2, use_container_width=True)
-                else:
-                    st.info(f"No archetype data for {city}.")
+        profile_cols = {
+            "length_m":             "Segment Length (m)",
+            "intersection_density": "Intersection Density",
+            "poi_schools":          "Schools (500m)",
+            "poi_hospitals":        "Hospitals (500m)",
+            "poi_bus_stops":        "Bus Stops (500m)",
+            "speed_limit":          "Speed Limit (km/h)",
+            "lanes":                "Lanes",
+        }
+        avail_cols = {k: v for k, v in profile_cols.items()
+                      if k in bs_df.columns}
 
-        st.subheader("Archetype Summary Table")
-        summary = arch_df.groupby(
-            ["archetype_name","city"]
-        ).size().unstack(fill_value=0).reset_index()
-        summary.columns.name = None
-        st.dataframe(summary, use_container_width=True)
+        # Only road types with ≥30 black spot segments
+        valid_types = (bs_df["highway_type"]
+                       .value_counts()
+                       .loc[lambda x: x >= 30]
+                       .index.tolist())
+        bs_valid = bs_df[bs_df["highway_type"].isin(valid_types)]
+
+        if len(bs_valid) == 0:
+            st.warning("Not enough black spot segments per road type "
+                       "in current filter. Try selecting 'Both' cities.")
+        else:
+            profile = (bs_valid
+                       .groupby("highway_type")[list(avail_cols.keys())]
+                       .mean()
+                       .round(2)
+                       .reset_index())
+
+            # ── Summary metrics row ───────────────────────────────────────
+            n_types   = len(profile)
+            n_bs_show = len(bs_valid)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Road Types Analysed", n_types)
+            c2.metric("Black Spots in View", f"{n_bs_show:,}")
+            c3.metric("Cities", city_filter)
+
+            st.markdown("---")
+
+            # ── Heatmap ───────────────────────────────────────────────────
+            import matplotlib.pyplot as plt
+            import matplotlib
+            matplotlib.use("Agg")
+            from sklearn.preprocessing import MinMaxScaler
+            import numpy as np
+
+            scaler       = MinMaxScaler()
+            profile_norm = profile.copy()
+            profile_norm[list(avail_cols.keys())] = scaler.fit_transform(
+                profile[list(avail_cols.keys())]
+            )
+
+            heat_data = (profile_norm
+                         .set_index("highway_type")
+                         [list(avail_cols.keys())])
+            heat_data.columns = list(avail_cols.values())
+
+            annot_data = (profile
+                          .set_index("highway_type")
+                          [list(avail_cols.keys())])
+            annot_data.columns = list(avail_cols.values())
+
+            import seaborn as sns
+            fig, ax = plt.subplots(
+                figsize=(max(10, len(avail_cols)*1.5),
+                         max(4, len(valid_types)*0.9))
+            )
+            sns.heatmap(
+                heat_data,
+                annot=annot_data,
+                fmt=".2f",
+                cmap="YlOrRd",
+                linewidths=0.5,
+                ax=ax,
+                cbar_kws={"label": "Normalised rank\n(0=lowest, 1=highest)"},
+                annot_kws={"size": 9}
+            )
+            ax.set_title(
+                "Black Spot Feature Profiles by Road Type\n"
+                "(Values = actual means · Colour = normalised rank within feature)",
+                fontsize=12, fontweight="bold", pad=15
+            )
+            ax.set_xlabel("")
+            ax.set_ylabel("Road Type", fontsize=11)
+            plt.xticks(rotation=25, ha="right", fontsize=10)
+            plt.yticks(rotation=0, fontsize=10)
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
+
+            st.markdown("---")
+
+            # ── Interpretation cards ──────────────────────────────────────
+            st.subheader("📋 Risk Profile Interpretation")
+
+            PROFILES = {
+                "motorway": {
+                    "icon": "🛣️",
+                    "headline": "High-Speed Long Segment Risk",
+                    "description": (
+                        "Motorway black spots are characterised by "
+                        "long segments and high speed limits with "
+                        "minimal POI activity nearby. Risk is driven "
+                        "by vehicle speed and exposure over long distances."
+                    ),
+                    "intervention": (
+                        "Speed cameras · Variable speed limits · "
+                        "Rumble strips · Enhanced lighting"
+                    ),
+                    "color": "#e74c3c",
+                },
+                "trunk": {
+                    "icon": "🚗",
+                    "headline": "Arterial Corridor Risk",
+                    "description": (
+                        "Trunk road black spots combine moderate "
+                        "segment length with moderate junction density. "
+                        "Risk arises from mixed traffic at arterial speeds."
+                    ),
+                    "intervention": (
+                        "Junction upgrades · Lane discipline signage · "
+                        "Median barriers · Service road management"
+                    ),
+                    "color": "#e67e22",
+                },
+                "primary": {
+                    "icon": "🏙️",
+                    "headline": "Urban Arterial Conflict",
+                    "description": (
+                        "Primary road black spots show elevated "
+                        "intersection density and growing POI proximity. "
+                        "Pedestrian-vehicle conflicts increase as "
+                        "urban activity intensifies."
+                    ),
+                    "intervention": (
+                        "Signalised intersections · Pedestrian crossings · "
+                        "Speed tables · Bus bay designation"
+                    ),
+                    "color": "#f39c12",
+                },
+                "secondary": {
+                    "icon": "🏘️",
+                    "headline": "Dense Urban Network Risk",
+                    "description": (
+                        "Secondary road black spots have the highest "
+                        "intersection density among higher-order roads "
+                        "combined with significant bus stop and hospital "
+                        "proximity. High pedestrian activity area."
+                    ),
+                    "intervention": (
+                        "Raised crossings · Hospital zone signage · "
+                        "Bus bays · Junction mini-roundabouts"
+                    ),
+                    "color": "#8e44ad",
+                },
+                "tertiary": {
+                    "icon": "🏫",
+                    "headline": "School & Hospital Zone Conflict",
+                    "description": (
+                        "Tertiary black spots have the highest school, "
+                        "hospital, and bus stop density of all road types "
+                        "combined with the highest intersection density. "
+                        "These are the most complex urban risk environments."
+                    ),
+                    "intervention": (
+                        "School zone designation · Speed humps · "
+                        "Dedicated pedestrian phases · Parking restrictions"
+                    ),
+                    "color": "#2980b9",
+                },
+            }
+
+            shown_types = [t for t in valid_types
+                           if t in PROFILES]
+            other_types = [t for t in valid_types
+                           if t not in PROFILES]
+
+            cols = st.columns(min(3, len(shown_types)))
+            for i, ht in enumerate(shown_types):
+                p = PROFILES[ht]
+                with cols[i % len(cols)]:
+                    st.markdown(
+                        f"<div style='border-left:4px solid {p['color']};"
+                        f"padding:10px 14px;border-radius:6px;"
+                        f"background:#fafafa;margin-bottom:12px;'>"
+                        f"<strong style='font-size:1.05rem;'>"
+                        f"{p['icon']} {ht.title()}</strong><br>"
+                        f"<em style='color:#555;font-size:0.85rem;'>"
+                        f"{p['headline']}</em><br><br>"
+                        f"{p['description']}<br><br>"
+                        f"<strong>Interventions:</strong> "
+                        f"<span style='color:#2c7be5;'>"
+                        f"{p['intervention']}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+
+            # Fallback for any road types not in PROFILES dict
+            if other_types:
+                st.markdown(
+                    f"**Other road types with black spots:** "
+                    f"{', '.join(other_types)}"
+                )
+
+            st.markdown("---")
+
+            # ── Raw data table ────────────────────────────────────────────
+            with st.expander("📊 View raw profile data"):
+                display_df = profile.copy()
+                display_df.columns = (
+                    ["Road Type"] + list(avail_cols.values())
+                )
+                st.dataframe(display_df, use_container_width=True)
+
+                csv = display_df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "📥 Download Profile Data (CSV)",
+                    data=csv,
+                    file_name="road_type_risk_profiles.csv",
+                    mime="text/csv"
+                )
 
 # ════════════════════════════════════════════════════════════════
 # PANEL 4 — WHAT-IF SIMULATOR
