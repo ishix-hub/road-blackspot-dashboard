@@ -463,9 +463,6 @@ elif panel == "🧩 Risk Profiles":
             st.markdown("---")
 
             # ── Heatmap ───────────────────────────────────────────────────
-            import matplotlib.pyplot as plt
-            import matplotlib
-            matplotlib.use("Agg")
             from sklearn.preprocessing import MinMaxScaler
             import numpy as np
 
@@ -485,7 +482,6 @@ elif panel == "🧩 Risk Profiles":
                           [list(avail_cols.keys())])
             annot_data.columns = list(avail_cols.values())
 
-            import seaborn as sns
             fig, ax = plt.subplots(
                 figsize=(max(10, len(avail_cols)*1.5),
                          max(4, len(valid_types)*0.9))
