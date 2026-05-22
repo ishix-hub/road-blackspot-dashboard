@@ -407,7 +407,7 @@ elif panel == "🔍 SHAP Segment Detail":
 # ════════════════════════════════════════════════════════════════
 # PANEL 3 — ROAD TYPE RISK PROFILES (replaces BERTopic)
 # ════════════════════════════════════════════════════════════════
-elif panel == "🧩 Risk Archetypes":
+elif panel == "🧩 Risk Profiles":
     st.markdown(
         "<div class='main-title'>🧩 Road Type Risk Profiles</div>"
         "<div class='sub-title'>"
