@@ -120,7 +120,7 @@ only_bs     = st.sidebar.checkbox("Show only black spots", value=False)
 panel       = st.sidebar.radio("📊 Panel", [
     "🗺️ Risk Heatmap",
     "🔍 SHAP Segment Detail",
-    "🧩 Risk Archetypes",
+    "🧩 Risk Profiles",
     "⚙️ What-If Simulator",
     "📋 Policy Recommendations",
 ])
