@@ -12,6 +12,7 @@ import plotly.express as px
 import shap
 import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
 matplotlib.use("Agg")
 
 # ── Page config ───────────────────────────────────────────────────────────
